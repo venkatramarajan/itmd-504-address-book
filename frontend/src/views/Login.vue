@@ -49,7 +49,6 @@
 
 <script>
 import { mapActions } from 'vuex'
-import axios from 'axios'
 
 export default {
   name: 'Login',
@@ -68,22 +67,11 @@ export default {
       this.loading = true
       
       try {
-        const response = await axios.post('http://localhost:5000/api/login', {
+        await this.login({
           username: this.username,
           password: this.password
-        }, {
-          withCredentials: true
         })
-
-        if (response.data.message === 'Logged in successfully') {
-          await this.login({
-            username: this.username,
-            password: this.password
-          })
-          this.$router.push('/contacts')
-        } else {
-          this.error = 'Invalid response from server'
-        }
+        this.$router.push('/contacts')
       } catch (error) {
         console.error('Login error:', error)
         this.error = error.response?.data?.error || 'Login failed. Please try again.'

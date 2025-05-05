@@ -3,6 +3,9 @@ import axios from 'axios'
 
 const API_URL = 'http://localhost:5000/api'
 
+// Configure axios defaults
+axios.defaults.withCredentials = true
+
 export default createStore({
   state: {
     user: null,
@@ -41,10 +44,22 @@ export default createStore({
   actions: {
     async login({ commit }, credentials) {
       try {
-        const response = await axios.post(`${API_URL}/login`, credentials)
-        commit('setUser', { username: credentials.username, is_admin: response.data.is_admin })
+        const response = await axios.post(`${API_URL}/login`, credentials, {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.data.message === 'Logged in successfully') {
+          commit('setUser', {
+            username: response.data.username,
+            is_admin: response.data.is_admin
+          })
+        }
         return response
       } catch (error) {
+        console.error('Login error in store:', error)
         throw error
       }
     },
