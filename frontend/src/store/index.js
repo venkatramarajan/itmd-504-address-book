@@ -26,14 +26,16 @@ export default createStore({
     user: null,
     contacts: [],
     users: [],
-    serverError: null
+    serverError: null,
+    serverStatus: 'unknown' // 'unknown', 'online', 'offline'
   },
   getters: {
     isLoggedIn: state => !!state.user,
     isAdmin: state => state.user?.is_admin || false,
     getContacts: state => state.contacts,
     getUsers: state => state.users,
-    getServerError: state => state.serverError
+    getServerError: state => state.serverError,
+    getServerStatus: state => state.serverStatus
   },
   mutations: {
     setUser(state, user) {
@@ -51,6 +53,9 @@ export default createStore({
     clearServerError(state) {
       state.serverError = null
     },
+    setServerStatus(state, status) {
+      state.serverStatus = status
+    },
     addContact(state, contact) {
       state.contacts.push(contact)
     },
@@ -65,10 +70,27 @@ export default createStore({
     }
   },
   actions: {
-    async login({ commit }, credentials) {
+    async checkServerStatus({ commit }) {
+      try {
+        await axios.get(`${API_URL}/health`, { timeout: 5000 })
+        commit('setServerStatus', 'online')
+        commit('clearServerError')
+      } catch (error) {
+        commit('setServerStatus', 'offline')
+        commit('setServerError', 'Server is not running. Please start the backend server.')
+      }
+    },
+    async login({ commit, dispatch }, credentials) {
       try {
         commit('clearServerError')
         console.log('Attempting login with:', credentials)
+        
+        // Check server status before attempting login
+        await dispatch('checkServerStatus')
+        if (this.state.serverStatus === 'offline') {
+          throw new Error('Server is not running')
+        }
+
         const response = await axios.post(`${API_URL}/login`, credentials, {
           retry: 3,
           retryDelay: 1000
@@ -84,7 +106,8 @@ export default createStore({
         return response
       } catch (error) {
         console.error('Login error in store:', error.response?.data || error)
-        if (error.code === 'ERR_NETWORK') {
+        if (error.code === 'ERR_NETWORK' || error.message === 'Server is not running') {
+          commit('setServerStatus', 'offline')
           commit('setServerError', 'Unable to connect to server. Please check if the server is running.')
         } else {
           commit('setServerError', error.response?.data?.error || 'Login failed. Please try again.')

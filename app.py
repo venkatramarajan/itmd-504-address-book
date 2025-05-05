@@ -214,6 +214,16 @@ def create_user():
     db.session.commit()
     return jsonify({'message': 'User created successfully'}), 201
 
+@app.route('/api/health')
+def health_check():
+    try:
+        # Check database connection
+        db.session.execute('SELECT 1')
+        return jsonify({'status': 'healthy', 'database': 'connected'})
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
 # Create admin user if not exists
 def create_admin_user():
     if not User.query.filter_by(username='admin').first():
