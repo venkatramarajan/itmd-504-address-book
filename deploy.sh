@@ -8,7 +8,11 @@ echo "Starting deployment of Address Book Application..."
 # Function to validate Git URL
 validate_git_url() {
     local url=$1
+    # Check for HTTPS/HTTP URLs
     if [[ $url =~ ^(https?|git)://.*\.git$ ]]; then
+        return 0
+    # Check for SSH URLs (git@github.com:username/repo.git)
+    elif [[ $url =~ ^git@[a-zA-Z0-9.-]+:[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+\.git$ ]]; then
         return 0
     else
         return 1
@@ -19,12 +23,15 @@ validate_git_url() {
 get_git_repo() {
     local repo_url
     while true; do
-        read -p "Please enter the Git repository URL (e.g., https://github.com/username/repo.git): " repo_url
+        read -p "Please enter the Git repository URL (e.g., https://github.com/username/repo.git or git@github.com:username/repo.git): " repo_url
         if validate_git_url "$repo_url"; then
             echo "$repo_url"
             return 0
         else
             echo "Invalid Git URL format. Please enter a valid URL ending with .git"
+            echo "Supported formats:"
+            echo "  - HTTPS: https://github.com/username/repo.git"
+            echo "  - SSH: git@github.com:username/repo.git"
         fi
     done
 }
