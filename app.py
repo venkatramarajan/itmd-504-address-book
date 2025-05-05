@@ -6,6 +6,8 @@ from flask_bcrypt import Bcrypt
 import os
 from dotenv import load_dotenv
 import logging
+from urllib.parse import quote_plus
+import subprocess
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -31,9 +33,38 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 
+def update_mysql_user_password():
+    try:
+        # Create SQL commands
+        sql_commands = [
+            "ALTER USER 'addressbook_user'@'localhost' IDENTIFIED BY 'AddressBook123!';",
+            "FLUSH PRIVILEGES;"
+        ]
+        
+        # Execute MySQL commands using sudo
+        for cmd in sql_commands:
+            mysql_cmd = f"sudo mysql -e \"{cmd}\""
+            result = subprocess.run(mysql_cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.error(f"MySQL command failed: {result.stderr}")
+                raise Exception(f"MySQL command failed: {result.stderr}")
+            
+        logger.info("Successfully updated MySQL user password")
+    except Exception as e:
+        logger.error(f"Failed to update MySQL user password: {str(e)}")
+        raise
+
 # MySQL Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost/addressbook')
+db_user = os.getenv('DB_USER', 'addressbook_user')
+db_password = quote_plus(os.getenv('DB_PASSWORD', 'AddressBook123!'))
+db_host = os.getenv('DB_HOST', 'localhost')
+db_name = os.getenv('DB_NAME', 'addressbook')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}:{db_password}@{db_host}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+logger.info(f"Database URI: mysql+pymysql://{db_user}:****@{db_host}/{db_name}")
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -234,6 +265,9 @@ def create_admin_user():
 
 if __name__ == '__main__':
     try:
+        # Update MySQL user password before starting the app
+        update_mysql_user_password()
+        
         with app.app_context():
             db.create_all()
             create_admin_user()
