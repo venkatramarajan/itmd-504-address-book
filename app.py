@@ -19,7 +19,7 @@ app = Flask(__name__)
 # Configure CORS with credentials
 CORS(app, 
      supports_credentials=True,
-     resources={r"/api/*": {"origins": "http://localhost:8080"}},
+     resources={r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080"]}},
      allow_headers=["Content-Type", "Authorization"],
      expose_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
@@ -223,7 +223,12 @@ def create_admin_user():
         db.session.commit()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        create_admin_user()
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+    try:
+        with app.app_context():
+            db.create_all()
+            create_admin_user()
+        logger.info("Starting Flask server...")
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    except Exception as e:
+        logger.error(f"Failed to start Flask server: {str(e)}")
+        raise 

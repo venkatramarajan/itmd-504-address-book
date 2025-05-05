@@ -7,17 +7,33 @@ const API_URL = 'http://localhost:5000/api'
 axios.defaults.withCredentials = true
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 
+// Add retry logic for failed requests
+axios.interceptors.response.use(undefined, async (err) => {
+  const { config } = err
+  if (!config || !config.retry) {
+    return Promise.reject(err)
+  }
+  config.retry -= 1
+  const delayRetry = new Promise(resolve => {
+    setTimeout(resolve, config.retryDelay || 1000)
+  })
+  await delayRetry
+  return axios(config)
+})
+
 export default createStore({
   state: {
     user: null,
     contacts: [],
-    users: []
+    users: [],
+    serverError: null
   },
   getters: {
     isLoggedIn: state => !!state.user,
     isAdmin: state => state.user?.is_admin || false,
     getContacts: state => state.contacts,
-    getUsers: state => state.users
+    getUsers: state => state.users,
+    getServerError: state => state.serverError
   },
   mutations: {
     setUser(state, user) {
@@ -28,6 +44,12 @@ export default createStore({
     },
     setUsers(state, users) {
       state.users = users
+    },
+    setServerError(state, error) {
+      state.serverError = error
+    },
+    clearServerError(state) {
+      state.serverError = null
     },
     addContact(state, contact) {
       state.contacts.push(contact)
@@ -45,8 +67,12 @@ export default createStore({
   actions: {
     async login({ commit }, credentials) {
       try {
+        commit('clearServerError')
         console.log('Attempting login with:', credentials)
-        const response = await axios.post(`${API_URL}/login`, credentials)
+        const response = await axios.post(`${API_URL}/login`, credentials, {
+          retry: 3,
+          retryDelay: 1000
+        })
         console.log('Login response:', response.data)
         
         if (response.data.message === 'Logged in successfully') {
@@ -58,17 +84,31 @@ export default createStore({
         return response
       } catch (error) {
         console.error('Login error in store:', error.response?.data || error)
+        if (error.code === 'ERR_NETWORK') {
+          commit('setServerError', 'Unable to connect to server. Please check if the server is running.')
+        } else {
+          commit('setServerError', error.response?.data?.error || 'Login failed. Please try again.')
+        }
         throw error
       }
     },
-    async register(_, credentials) {
+    async register({ commit }, credentials) {
       try {
+        commit('clearServerError')
         console.log('Attempting registration with:', credentials)
-        const response = await axios.post(`${API_URL}/register`, credentials)
+        const response = await axios.post(`${API_URL}/register`, credentials, {
+          retry: 3,
+          retryDelay: 1000
+        })
         console.log('Registration response:', response.data)
         return response
       } catch (error) {
         console.error('Registration error in store:', error.response?.data || error)
+        if (error.code === 'ERR_NETWORK') {
+          commit('setServerError', 'Unable to connect to server. Please check if the server is running.')
+        } else {
+          commit('setServerError', error.response?.data?.error || 'Registration failed. Please try again.')
+        }
         throw error
       }
     },

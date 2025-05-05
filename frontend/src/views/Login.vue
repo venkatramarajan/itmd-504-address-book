@@ -9,6 +9,9 @@
           <div v-if="error" class="alert alert-danger" role="alert">
             {{ error }}
           </div>
+          <div v-if="serverError" class="alert alert-danger" role="alert">
+            {{ serverError }}
+          </div>
           <form @submit.prevent="handleLogin">
             <div class="mb-3">
               <label for="username" class="form-label">Username</label>
@@ -48,7 +51,7 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'Login',
@@ -60,12 +63,17 @@ export default {
       loading: false
     }
   },
+  computed: {
+    ...mapGetters(['getServerError']),
+    serverError() {
+      return this.getServerError
+    }
+  },
   methods: {
     ...mapActions(['login']),
     async handleLogin() {
       this.error = ''
       this.loading = true
-      
       try {
         await this.login({
           username: this.username,
@@ -74,7 +82,9 @@ export default {
         this.$router.push('/contacts')
       } catch (error) {
         console.error('Login error:', error)
-        this.error = error.response?.data?.error || 'Login failed. Please try again.'
+        if (!this.serverError) {
+          this.error = 'Login failed. Please try again.'
+        }
       } finally {
         this.loading = false
       }
