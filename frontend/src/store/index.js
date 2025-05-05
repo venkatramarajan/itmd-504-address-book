@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:5000/api'
 
 // Configure axios defaults
 axios.defaults.withCredentials = true
+axios.defaults.headers.common['Content-Type'] = 'application/json'
 
 export default createStore({
   state: {
@@ -44,12 +45,9 @@ export default createStore({
   actions: {
     async login({ commit }, credentials) {
       try {
-        const response = await axios.post(`${API_URL}/login`, credentials, {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        console.log('Attempting login with:', credentials)
+        const response = await axios.post(`${API_URL}/login`, credentials)
+        console.log('Login response:', response.data)
         
         if (response.data.message === 'Logged in successfully') {
           commit('setUser', {
@@ -59,14 +57,18 @@ export default createStore({
         }
         return response
       } catch (error) {
-        console.error('Login error in store:', error)
+        console.error('Login error in store:', error.response?.data || error)
         throw error
       }
     },
     async register(_, credentials) {
       try {
-        return await axios.post(`${API_URL}/register`, credentials)
+        console.log('Attempting registration with:', credentials)
+        const response = await axios.post(`${API_URL}/register`, credentials)
+        console.log('Registration response:', response.data)
+        return response
       } catch (error) {
+        console.error('Registration error in store:', error.response?.data || error)
         throw error
       }
     },
@@ -76,6 +78,7 @@ export default createStore({
         commit('setUser', null)
         commit('setContacts', [])
       } catch (error) {
+        console.error('Logout error:', error.response?.data || error)
         throw error
       }
     },

@@ -15,8 +15,21 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)  # Enable credentials in CORS
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')  # Change this in production
+
+# Configure CORS with credentials
+CORS(app, 
+     supports_credentials=True,
+     resources={r"/api/*": {"origins": "http://localhost:8080"}},
+     allow_headers=["Content-Type", "Authorization"],
+     expose_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
+# Session configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 
 # MySQL Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost/addressbook')
@@ -81,7 +94,7 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
 
         if bcrypt.check_password_hash(user.password, data['password']):
-            login_user(user)
+            login_user(user, remember=True)
             logger.info(f"User logged in successfully: {user.username}")
             return jsonify({
                 'message': 'Logged in successfully',
