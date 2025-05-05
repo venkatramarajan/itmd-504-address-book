@@ -12,12 +12,23 @@ sudo apt-get upgrade -y
 
 # Install required system packages
 echo "Installing system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv nodejs npm nginx
+sudo apt-get install -y python3 python3-pip python3-venv nginx
+
+# Clean up any existing Node.js installations
+echo "Cleaning up existing Node.js installations..."
+sudo apt-get remove -y nodejs npm
+sudo apt-get autoremove -y
 
 # Install Node.js 18.x (LTS)
 echo "Installing Node.js 18.x..."
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get update
 sudo apt-get install -y nodejs
+
+# Verify Node.js and npm installation
+echo "Verifying Node.js and npm installation..."
+node --version
+npm --version
 
 # Create application directory
 echo "Creating application directory..."
@@ -58,7 +69,15 @@ EOF
 # Set up frontend
 echo "Setting up frontend..."
 cd /var/www/addressbook/frontend
+
+# Clear npm cache and install dependencies
+echo "Installing frontend dependencies..."
+npm cache clean --force
+rm -rf node_modules package-lock.json
 npm install
+
+# Build frontend
+echo "Building frontend..."
 npm run build
 
 # Configure Nginx
