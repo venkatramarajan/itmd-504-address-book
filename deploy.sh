@@ -129,8 +129,8 @@ sudo mysql -e "SET GLOBAL validate_password.mixed_case_count = 0;"
 sudo mysql -e "SET GLOBAL validate_password.number_count = 0;"
 sudo mysql -e "SET GLOBAL validate_password.special_char_count = 0;"
 
-# Generate a secure password
-DB_PASSWORD="AddressBook@123"
+# Generate a secure password (without @ symbol to avoid URL encoding issues)
+DB_PASSWORD="AddressBook123!"
 echo "Using database password: $DB_PASSWORD"
 
 # Create database and user with proper password
