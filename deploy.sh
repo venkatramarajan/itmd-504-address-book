@@ -5,6 +5,30 @@ set -e
 
 echo "Starting deployment of Address Book Application..."
 
+# Function to validate Git URL
+validate_git_url() {
+    local url=$1
+    if [[ $url =~ ^(https?|git)://.*\.git$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to get Git repository URL
+get_git_repo() {
+    local repo_url
+    while true; do
+        read -p "Please enter the Git repository URL (e.g., https://github.com/username/repo.git): " repo_url
+        if validate_git_url "$repo_url"; then
+            echo "$repo_url"
+            return 0
+        else
+            echo "Invalid Git URL format. Please enter a valid URL ending with .git"
+        fi
+    done
+}
+
 # Update system packages
 echo "Updating system packages..."
 sudo apt-get update
@@ -12,7 +36,7 @@ sudo apt-get upgrade -y
 
 # Install required system packages
 echo "Installing system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv nginx
+sudo apt-get install -y python3 python3-pip python3-venv nginx git
 
 # Function to check Node.js version
 check_node_version() {
@@ -61,10 +85,26 @@ echo "Creating application directory..."
 sudo mkdir -p /var/www/addressbook
 sudo chown -R $USER:$USER /var/www/addressbook
 
+# Get Git repository URL and clone
+echo "Setting up Git repository..."
+GIT_REPO=$(get_git_repo)
+
 # Clone the repository (if not already present)
 if [ ! -d "/var/www/addressbook/.git" ]; then
-    echo "Cloning repository..."
-    git clone https://github.com/yourusername/addressbook.git /var/www/addressbook
+    echo "Cloning repository from $GIT_REPO..."
+    git clone "$GIT_REPO" /var/www/addressbook
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to clone repository. Please check the URL and try again."
+        exit 1
+    fi
+else
+    echo "Repository already exists. Updating..."
+    cd /var/www/addressbook
+    git pull
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to update repository. Please check your connection and try again."
+        exit 1
+    fi
 fi
 
 # Set up Python backend
