@@ -116,8 +116,13 @@ fi
 
 # Configure MySQL
 echo "Configuring MySQL..."
+# Generate a secure password that meets MySQL requirements
+DB_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9!@#$%^&*' | head -c 16)
+echo "Generated secure database password: $DB_PASSWORD"
+
+# Create database and user with proper password
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS addressbook;"
-sudo mysql -e "CREATE USER IF NOT EXISTS 'addressbook_user'@'localhost' IDENTIFIED BY 'your_secure_password';"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'addressbook_user'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
 sudo mysql -e "GRANT ALL PRIVILEGES ON addressbook.* TO 'addressbook_user'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
@@ -129,9 +134,9 @@ if [ ! -f "$ENV_FILE" ]; then
     SECRET_KEY=$(openssl rand -hex 32)
     
     # Create .env file with secure configuration
-    sudo bash -c "cat > $ENV_FILE << 'EOL'
+    sudo bash -c "cat > $ENV_FILE << EOL
 # Database Configuration
-DATABASE_URL=mysql+pymysql://addressbook_user:your_secure_password@localhost/addressbook
+DATABASE_URL=mysql+pymysql://addressbook_user:$DB_PASSWORD@localhost/addressbook
 
 # Application Security
 SECRET_KEY=$SECRET_KEY
@@ -146,6 +151,7 @@ EOL"
     sudo chmod 600 "$ENV_FILE"
     
     echo "Created .env file with secure configuration"
+    echo "IMPORTANT: Please save the database password: $DB_PASSWORD"
 else
     echo ".env file already exists, skipping creation"
 fi
