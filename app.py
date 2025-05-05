@@ -4,11 +4,17 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-app.config['SECRET_KEY'] = 'your-secret-key'  # Change this in production
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///addressbook.db'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')  # Change this in production
+
+# MySQL Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost/addressbook')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)

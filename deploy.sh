@@ -43,7 +43,7 @@ sudo apt-get upgrade -y
 
 # Install required system packages
 echo "Installing system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv nginx git
+sudo apt-get install -y python3 python3-pip python3-venv nginx git mysql-server
 
 # Function to check Node.js version
 check_node_version() {
@@ -112,6 +112,42 @@ else
         echo "Error: Failed to update repository. Please check your connection and try again."
         exit 1
     fi
+fi
+
+# Configure MySQL
+echo "Configuring MySQL..."
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS addressbook;"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'addressbook_user'@'localhost' IDENTIFIED BY 'your_secure_password';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON addressbook.* TO 'addressbook_user'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+
+# Create .env file with secure configuration
+echo "Creating environment configuration..."
+ENV_FILE="/var/www/addressbook/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    # Generate a secure random key
+    SECRET_KEY=$(openssl rand -hex 32)
+    
+    # Create .env file with secure configuration
+    sudo bash -c "cat > $ENV_FILE << 'EOL'
+# Database Configuration
+DATABASE_URL=mysql+pymysql://addressbook_user:your_secure_password@localhost/addressbook
+
+# Application Security
+SECRET_KEY=$SECRET_KEY
+
+# Optional: Application Settings
+FLASK_ENV=production
+FLASK_DEBUG=0
+EOL"
+    
+    # Set proper permissions
+    sudo chown www-data:www-data "$ENV_FILE"
+    sudo chmod 600 "$ENV_FILE"
+    
+    echo "Created .env file with secure configuration"
+else
+    echo ".env file already exists, skipping creation"
 fi
 
 # Set up Python backend
