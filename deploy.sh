@@ -43,7 +43,11 @@ sudo apt-get upgrade -y
 
 # Install required system packages
 echo "Installing system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv nginx git mysql-server
+sudo apt-get install -y python3 python3-pip python3-venv nginx git mysql-server \
+    pkg-config \
+    python3-dev \
+    default-libmysqlclient-dev \
+    build-essential
 
 # Function to check Node.js version
 check_node_version() {
