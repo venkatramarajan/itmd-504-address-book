@@ -143,6 +143,28 @@ EOF
 echo "Setting up frontend..."
 cd /var/www/addressbook/frontend
 
+# Create ESLint configuration
+echo "Creating ESLint configuration..."
+cat > .eslintrc.js << EOF
+module.exports = {
+  root: true,
+  env: {
+    node: true
+  },
+  extends: [
+    'plugin:vue/vue3-essential',
+    'eslint:recommended'
+  ],
+  parserOptions: {
+    parser: '@babel/eslint-parser'
+  },
+  rules: {
+    'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off'
+  }
+}
+EOF
+
 # Clear npm cache and install dependencies
 echo "Installing frontend dependencies..."
 npm cache clean --force
