@@ -14,16 +14,42 @@ sudo apt-get upgrade -y
 echo "Installing system dependencies..."
 sudo apt-get install -y python3 python3-pip python3-venv nginx
 
-# Clean up any existing Node.js installations
-echo "Cleaning up existing Node.js installations..."
-sudo apt-get remove -y nodejs npm
-sudo apt-get autoremove -y
+# Function to check Node.js version
+check_node_version() {
+    if command -v node &> /dev/null; then
+        local current_version=$(node --version | cut -d'v' -f2)
+        local required_version="18.0.0"
+        
+        # Compare versions
+        if [ "$(printf '%s\n' "$required_version" "$current_version" | sort -V | head -n1)" = "$required_version" ]; then
+            echo "Node.js version $current_version is already installed and meets requirements"
+            return 0
+        else
+            echo "Node.js version $current_version is installed but needs to be updated"
+            return 1
+        fi
+    else
+        echo "Node.js is not installed"
+        return 1
+    fi
+}
 
-# Install Node.js 18.x (LTS)
-echo "Installing Node.js 18.x..."
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get update
-sudo apt-get install -y nodejs
+# Check if Node.js needs to be installed/updated
+if ! check_node_version; then
+    echo "Installing/Updating Node.js..."
+    # Clean up any existing Node.js installations
+    echo "Cleaning up existing Node.js installations..."
+    sudo apt-get remove -y nodejs npm
+    sudo apt-get autoremove -y
+
+    # Install Node.js 18.x (LTS)
+    echo "Installing Node.js 18.x..."
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get update
+    sudo apt-get install -y nodejs
+else
+    echo "Skipping Node.js installation as it's already up to date"
+fi
 
 # Verify Node.js and npm installation
 echo "Verifying Node.js and npm installation..."
