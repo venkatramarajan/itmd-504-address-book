@@ -6,6 +6,9 @@
           <h3 class="text-center">Login</h3>
         </div>
         <div class="card-body">
+          <div v-if="error" class="alert alert-danger" role="alert">
+            {{ error }}
+          </div>
           <form @submit.prevent="handleLogin">
             <div class="mb-3">
               <label for="username" class="form-label">Username</label>
@@ -15,6 +18,7 @@
                 id="username"
                 v-model="username"
                 required
+                :disabled="loading"
               >
             </div>
             <div class="mb-3">
@@ -25,10 +29,13 @@
                 id="password"
                 v-model="password"
                 required
+                :disabled="loading"
               >
             </div>
             <div class="d-grid">
-              <button type="submit" class="btn btn-primary">Login</button>
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                {{ loading ? 'Logging in...' : 'Login' }}
+              </button>
             </div>
           </form>
           <div class="mt-3 text-center">
@@ -42,28 +49,60 @@
 
 <script>
 import { mapActions } from 'vuex'
+import axios from 'axios'
 
 export default {
   name: 'Login',
   data() {
     return {
       username: '',
-      password: ''
+      password: '',
+      error: '',
+      loading: false
     }
   },
   methods: {
     ...mapActions(['login']),
     async handleLogin() {
+      this.error = ''
+      this.loading = true
+      
       try {
-        await this.login({
+        const response = await axios.post('http://localhost:5000/api/login', {
           username: this.username,
           password: this.password
+        }, {
+          withCredentials: true
         })
-        this.$router.push('/contacts')
+
+        if (response.data.message === 'Logged in successfully') {
+          await this.login({
+            username: this.username,
+            password: this.password
+          })
+          this.$router.push('/contacts')
+        } else {
+          this.error = 'Invalid response from server'
+        }
       } catch (error) {
-        alert(error.response?.data?.error || 'Login failed')
+        console.error('Login error:', error)
+        this.error = error.response?.data?.error || 'Login failed. Please try again.'
+      } finally {
+        this.loading = false
       }
     }
   }
 }
+</script>
+
+<style scoped>
+.card {
+  margin-top: 2rem;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+.alert {
+  margin-bottom: 1rem;
+}
+</style> 
+</style> 
 </script> 

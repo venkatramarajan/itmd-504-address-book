@@ -5,12 +5,17 @@ from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 import os
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)  # Enable credentials in CORS
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')  # Change this in production
 
 # MySQL Configuration
@@ -61,15 +66,35 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    user = User.query.filter_by(username=data['username']).first()
-    if user and bcrypt.check_password_hash(user.password, data['password']):
-        login_user(user)
-        return jsonify({
-            'message': 'Logged in successfully',
-            'is_admin': user.is_admin
-        })
-    return jsonify({'error': 'Invalid credentials'}), 401
+    try:
+        data = request.get_json()
+        logger.debug(f"Login attempt for username: {data.get('username')}")
+        
+        if not data or 'username' not in data or 'password' not in data:
+            logger.error("Missing username or password in request")
+            return jsonify({'error': 'Username and password are required'}), 400
+
+        user = User.query.filter_by(username=data['username']).first()
+        
+        if not user:
+            logger.error(f"User not found: {data['username']}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        if bcrypt.check_password_hash(user.password, data['password']):
+            login_user(user)
+            logger.info(f"User logged in successfully: {user.username}")
+            return jsonify({
+                'message': 'Logged in successfully',
+                'is_admin': user.is_admin,
+                'username': user.username
+            })
+        else:
+            logger.error(f"Invalid password for user: {user.username}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+            
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'error': 'An error occurred during login'}), 500
 
 @app.route('/api/logout')
 @login_required
