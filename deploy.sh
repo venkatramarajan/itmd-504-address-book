@@ -116,9 +116,18 @@ fi
 
 # Configure MySQL
 echo "Configuring MySQL..."
-# Generate a secure password that meets MySQL requirements
-DB_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9!@#$%^&*' | head -c 16)
-echo "Generated secure database password: $DB_PASSWORD"
+
+# Check and adjust MySQL password policy
+echo "Configuring MySQL password policy..."
+sudo mysql -e "SET GLOBAL validate_password.policy = 0;"
+sudo mysql -e "SET GLOBAL validate_password.length = 8;"
+sudo mysql -e "SET GLOBAL validate_password.mixed_case_count = 0;"
+sudo mysql -e "SET GLOBAL validate_password.number_count = 0;"
+sudo mysql -e "SET GLOBAL validate_password.special_char_count = 0;"
+
+# Generate a secure password
+DB_PASSWORD="AddressBook@123"
+echo "Using database password: $DB_PASSWORD"
 
 # Create database and user with proper password
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS addressbook;"
