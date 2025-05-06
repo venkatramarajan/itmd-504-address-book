@@ -10,11 +10,17 @@ from urllib.parse import quote_plus
 import subprocess
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+# Determine environment
+is_production = os.getenv('FLASK_ENV') == 'production'
 
 app = Flask(__name__)
 
@@ -28,7 +34,7 @@ CORS(app,
 
 # Session configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = is_production  # True in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
@@ -271,8 +277,16 @@ if __name__ == '__main__':
         with app.app_context():
             db.create_all()
             create_admin_user()
+        
         logger.info("Starting Flask server...")
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        if is_production:
+            logger.info("Running in PRODUCTION mode")
+            # In production, we should use a proper WSGI server
+            # This is just for development
+            app.run(host='0.0.0.0', port=5000, debug=False)
+        else:
+            logger.info("Running in DEVELOPMENT mode")
+            app.run(host='0.0.0.0', port=5000, debug=True)
     except Exception as e:
         logger.error(f"Failed to start Flask server: {str(e)}")
         raise 
