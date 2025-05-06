@@ -91,10 +91,16 @@ echo "Verifying Node.js and npm installation..."
 node --version
 npm --version
 
-# Create application directory
+# Create application directory and set permissions
 echo "Creating application directory..."
 sudo mkdir -p /var/www/addressbook
 sudo chown -R $USER:$USER /var/www/addressbook
+
+# Create log directory and set permissions
+echo "Creating log directory..."
+sudo mkdir -p /var/log/addressbook
+sudo chown -R www-data:www-data /var/log/addressbook
+sudo chmod 755 /var/log/addressbook
 
 # Get Git repository URL and clone
 echo "Setting up Git repository..."
@@ -149,12 +155,15 @@ if [ ! -f "$ENV_FILE" ]; then
     # Create .env file with secure configuration
     sudo bash -c "cat > $ENV_FILE << EOL
 # Database Configuration
-DATABASE_URL=mysql+pymysql://addressbook_user:$DB_PASSWORD@localhost/addressbook
+DB_USER=addressbook_user
+DB_PASSWORD=$DB_PASSWORD
+DB_HOST=localhost
+DB_NAME=addressbook
 
 # Application Security
 SECRET_KEY=$SECRET_KEY
 
-# Optional: Application Settings
+# Application Settings
 FLASK_ENV=production
 FLASK_DEBUG=0
 EOL"
@@ -176,6 +185,53 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
+# Create Gunicorn configuration
+echo "Creating Gunicorn configuration..."
+sudo tee /var/www/addressbook/gunicorn_config.py << EOF
+import multiprocessing
+import os
+
+# Server socket
+bind = "0.0.0.0:5000"
+backlog = 2048
+
+# Worker processes
+workers = multiprocessing.cpu_count() * 2 + 1
+worker_class = 'sync'
+worker_connections = 1000
+timeout = 30
+keepalive = 2
+
+# Logging
+accesslog = '/var/log/addressbook/access.log'
+errorlog = '/var/log/addressbook/error.log'
+loglevel = 'info'
+
+# Process naming
+proc_name = 'addressbook'
+
+# Server mechanics
+daemon = False
+pidfile = '/var/run/addressbook.pid'
+umask = 0
+user = 'www-data'
+group = 'www-data'
+tmp_upload_dir = None
+
+# Server hooks
+def on_starting(server):
+    """
+    Log when the server starts
+    """
+    server.log.info("Starting Address Book application server")
+
+def on_exit(server):
+    """
+    Log when the server exits
+    """
+    server.log.info("Stopping Address Book application server")
+EOF
+
 # Create systemd service for backend
 echo "Creating systemd service for backend..."
 sudo tee /etc/systemd/system/addressbook-backend.service << EOF
@@ -184,10 +240,12 @@ Description=Address Book Backend
 After=network.target
 
 [Service]
-User=$USER
+User=www-data
+Group=www-data
 WorkingDirectory=/var/www/addressbook
 Environment="PATH=/var/www/addressbook/venv/bin"
-ExecStart=/var/www/addressbook/venv/bin/python app.py
+Environment="FLASK_ENV=production"
+ExecStart=/var/www/addressbook/venv/bin/gunicorn -c gunicorn_config.py app:app
 Restart=always
 
 [Install]
@@ -251,13 +309,26 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
         proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
+
+    # Logging
+    access_log /var/log/addressbook/nginx-access.log;
+    error_log /var/log/addressbook/nginx-error.log;
 }
 EOF
 
 # Enable the site
 sudo ln -sf /etc/nginx/sites-available/addressbook /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
+
+# Set proper permissions
+echo "Setting proper permissions..."
+sudo chown -R www-data:www-data /var/www/addressbook
+sudo chmod -R 755 /var/www/addressbook
+sudo chmod -R 755 /var/www/addressbook/frontend/dist
 
 # Start and enable services
 echo "Starting services..."
