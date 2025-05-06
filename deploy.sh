@@ -178,11 +178,30 @@ else
     echo ".env file already exists, skipping creation"
 fi
 
-# Set up Python backend
-echo "Setting up Python backend..."
+# Set proper permissions
+echo "Setting proper permissions..."
+sudo chown -R www-data:www-data /var/www/addressbook
+sudo chmod -R 755 /var/www/addressbook
+sudo chmod -R 755 /var/www/addressbook/frontend/dist
+sudo chmod 600 /var/www/addressbook/.env
+
+# Create and set permissions for log directory
+echo "Setting up log directory..."
+sudo mkdir -p /var/log/addressbook
+sudo chown -R www-data:www-data /var/log/addressbook
+sudo chmod 755 /var/log/addressbook
+sudo touch /var/log/addressbook/gunicorn.out.log /var/log/addressbook/gunicorn.err.log
+sudo chown www-data:www-data /var/log/addressbook/gunicorn.*.log
+sudo chmod 644 /var/log/addressbook/gunicorn.*.log
+
+# Ensure virtual environment is properly set up
+echo "Setting up virtual environment..."
 cd /var/www/addressbook
-python3 -m venv venv
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
+fi
 source venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 
 # Create Gunicorn configuration
@@ -324,18 +343,23 @@ EOF
 sudo ln -sf /etc/nginx/sites-available/addressbook /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Set proper permissions
-echo "Setting proper permissions..."
-sudo chown -R www-data:www-data /var/www/addressbook
-sudo chmod -R 755 /var/www/addressbook
-sudo chmod -R 755 /var/www/addressbook/frontend/dist
-
 # Start and enable services
 echo "Starting services..."
 sudo systemctl daemon-reload
 sudo systemctl enable addressbook-backend
+sudo systemctl stop addressbook-backend || true
 sudo systemctl start addressbook-backend
 sudo systemctl restart nginx
+
+# Check the status and logs
+echo "Checking service status and logs..."
+sudo systemctl status addressbook-backend
+echo "=== Gunicorn Output Log ==="
+sudo tail -n 50 /var/log/addressbook/gunicorn.out.log
+echo "=== Gunicorn Error Log ==="
+sudo tail -n 50 /var/log/addressbook/gunicorn.err.log
+echo "=== Systemd Journal ==="
+sudo journalctl -u addressbook-backend -n 50 --no-pager
 
 # Set up SSL with Let's Encrypt (optional)
 echo "Would you like to set up SSL with Let's Encrypt? (y/n)"

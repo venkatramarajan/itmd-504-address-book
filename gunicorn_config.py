@@ -7,7 +7,7 @@ bind = "127.0.0.1:5000"  # Changed to localhost only
 backlog = 2048
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+workers = 2  # Reduced number of workers for debugging
 worker_class = 'sync'
 worker_connections = 1000
 timeout = 30
@@ -35,23 +35,62 @@ user = 'www-data'
 group = 'www-data'
 tmp_upload_dir = None
 
-# Server hooks
+def check_environment():
+    """
+    Check if all required environment variables and directories exist
+    """
+    required_dirs = [
+        '/var/www/addressbook',
+        '/var/log/addressbook',
+        '/var/www/addressbook/venv',
+    ]
+    
+    for directory in required_dirs:
+        if not os.path.exists(directory):
+            print(f"Error: Required directory {directory} does not exist")
+            return False
+    
+    # Check if .env file exists and is readable
+    env_file = '/var/www/addressbook/.env'
+    if not os.path.exists(env_file):
+        print(f"Error: .env file not found at {env_file}")
+        return False
+    
+    try:
+        with open(env_file, 'r') as f:
+            f.read()
+    except PermissionError:
+        print(f"Error: Cannot read .env file at {env_file}")
+        return False
+    
+    return True
+
 def on_starting(server):
     """
-    Log when the server starts
+    Log when the server starts and check environment
     """
-    server.log.info("Starting Address Book application server")
+    print("Starting Address Book application server")
+    print(f"Python version: {sys.version}")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"Environment variables: {dict(os.environ)}")
+    
+    if not check_environment():
+        print("Environment check failed")
+        sys.exit(1)
+    
     # Ensure log directory exists and has correct permissions
     log_dir = '/var/log/addressbook'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir, mode=0o755)
     os.chmod(log_dir, 0o755)
+    
+    print("Environment check passed")
 
 def on_exit(server):
     """
     Log when the server exits
     """
-    server.log.info("Stopping Address Book application server")
+    print("Stopping Address Book application server")
 
 def worker_int(worker):
     """
