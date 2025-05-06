@@ -6,21 +6,53 @@ from flask_bcrypt import Bcrypt
 import os
 from dotenv import load_dotenv
 import logging
+from logging.handlers import RotatingFileHandler
 from urllib.parse import quote_plus
 import subprocess
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 # Determine environment
 is_production = os.getenv('FLASK_ENV') == 'production'
+
+# Configure logging
+if is_production:
+    # Create logs directory if it doesn't exist
+    log_dir = '/var/log/addressbook'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    # Configure file handler
+    file_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'app.log'),
+        maxBytes=10240000,  # 10MB
+        backupCount=10
+    )
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    file_handler.setLevel(logging.INFO)
+    
+    # Configure console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    console_handler.setLevel(logging.INFO)
+    
+    # Configure root logger
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[file_handler, console_handler]
+    )
+else:
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
